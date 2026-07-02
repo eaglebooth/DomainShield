@@ -21,7 +21,7 @@ declare global {
   }
 }
 
-const network = (process.env.NEXT_PUBLIC_NETWORK as NetworkName) || "testnetAsimov";
+const network = (process.env.NEXT_PUBLIC_NETWORK as NetworkName) || "studionet";
 const endpoint = process.env.NEXT_PUBLIC_GENLAYER_RPC;
 const chainMap = {
   localnet,
@@ -66,7 +66,7 @@ export type ContractResult = {
 };
 
 function getContractAddress(contractAddress?: string) {
-  return contractAddress || process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x58D77993CE38C7b692C21dc5BE5f61fee494C823";
+  return contractAddress || "0x58D77993CE38C7b692C21dc5BE5f61fee494C823";
 }
 
 export async function connectWallet(): Promise<ContractResult> {

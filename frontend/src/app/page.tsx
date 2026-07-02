@@ -84,7 +84,7 @@ export default function Home() {
 
   // Load contract address on mount
   useEffect(() => {
-    const addr = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x58D77993CE38C7b692C21dc5BE5f61fee494C823";
+    const addr = "0x58D77993CE38C7b692C21dc5BE5f61fee494C823";
     setContractAddress(addr);
     if (addr) {
       loadContractState();
