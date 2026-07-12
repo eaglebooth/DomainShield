@@ -1,19 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-
-export const metadata: Metadata = {
-  title: "DomainShield",
-  description: "On-chain brand domain squatting insurance powered by GenLayer.",
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  );
-}
+import { Header } from "@/components/Header";
+import { WalletProvider } from "@/components/WalletProvider";
+export const metadata: Metadata={title:"DomainShield | Brand domain risk intelligence",description:"Domain squatting evidence and comparative AI review on GenLayer."};
+export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="en"><body><WalletProvider><Header/>{children}</WalletProvider></body></html>}

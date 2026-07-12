@@ -6,6 +6,7 @@ import json
 
 
 class DomainShield(gl.Contract):
+    initialized: u256
     contract_owners: TreeMap[u256, str]
     contract_balance: u256
     contract_reserved: u256
@@ -31,8 +32,11 @@ class DomainShield(gl.Contract):
     claim_scam_risks: TreeMap[u256, u256]
     claim_confidence_scores: TreeMap[u256, u256]
     claim_ai_reports: TreeMap[u256, str]
+    claim_appeal_urls: TreeMap[u256, str]
+    claim_appealed: TreeMap[u256, u256]
 
     def __init__(self):
+        self.initialized = u256(0)
         self.contract_balance = u256(0)
         self.contract_reserved = u256(0)
         self.contract_paid = u256(0)
@@ -40,18 +44,22 @@ class DomainShield(gl.Contract):
         self.claim_count = u256(0)
 
     @gl.public.write
-    def initialize_contract(self, owner_wallet: str, initial_balance: u256) -> str:
-        if len(owner_wallet) == 0:
-            return "EMPTY_OWNER"
-        
-        self.contract_owners[u256(0)] = owner_wallet
+    def initialize_contract(self, initial_balance: u256) -> str:
+        if self.initialized != u256(0):
+            return "ALREADY_INITIALIZED"
+        self.contract_owners[u256(0)] = gl.message.sender_address
         self.contract_balance = initial_balance
         self.contract_reserved = u256(0)
         self.contract_paid = u256(0)
+        self.initialized = u256(1)
         return "CONTRACT_READY"
 
     @gl.public.write
     def add_funds(self, amount: u256) -> str:
+        if self.initialized == u256(0):
+            return "NOT_INITIALIZED"
+        if self.contract_owners[u256(0)] != gl.message.sender_address:
+            return "OWNER_ONLY"
         if amount == u256(0):
             return "ZERO_AMOUNT"
         self.contract_balance = self.contract_balance + amount
@@ -60,15 +68,14 @@ class DomainShield(gl.Contract):
     @gl.public.write
     def create_policy(
         self,
-        owner_wallet: str,
         brand_name: str,
         insured_domain: str,
         premium: u256,
         max_coverage: u256,
         start_time: u256,
     ) -> typing.Any:
-        if len(owner_wallet) == 0:
-            return "EMPTY_OWNER"
+        if self.initialized == u256(0):
+            return "NOT_INITIALIZED"
         if len(brand_name) == 0:
             return "EMPTY_BRAND"
         if len(insured_domain) == 0:
@@ -80,8 +87,14 @@ class DomainShield(gl.Contract):
         if max_coverage < premium:
             return "COVERAGE_LESS_THAN_PREMIUM"
 
+        i = u256(0)
+        while i < self.policy_count:
+            if self.policy_insured_domains[i] == insured_domain:
+                return "DOMAIN_ALREADY_INSURED"
+            i = i + u256(1)
+
         policy_id = self.policy_count
-        self.policy_owners[policy_id] = owner_wallet
+        self.policy_owners[policy_id] = gl.message.sender_address
         self.policy_brand_names[policy_id] = brand_name
         self.policy_insured_domains[policy_id] = insured_domain
         self.policy_premiums[policy_id] = premium
@@ -104,6 +117,8 @@ class DomainShield(gl.Contract):
             return "POLICY_NOT_FOUND"
         if self.policy_statuses[policy_id] != "ACTIVE":
             return "POLICY_NOT_ACTIVE"
+        if self.policy_owners[policy_id] != gl.message.sender_address:
+            return "POLICY_OWNER_ONLY"
         if len(squatted_domain) == 0:
             return "EMPTY_SQUATTED_DOMAIN"
         if self._is_url(evidence_url) == u256(0):
@@ -120,6 +135,8 @@ class DomainShield(gl.Contract):
         self.claim_scam_risks[claim_id] = u256(0)
         self.claim_confidence_scores[claim_id] = u256(0)
         self.claim_ai_reports[claim_id] = ""
+        self.claim_appeal_urls[claim_id] = ""
+        self.claim_appealed[claim_id] = u256(0)
 
         self.claim_count = claim_id + u256(1)
         return claim_id
@@ -130,7 +147,7 @@ class DomainShield(gl.Contract):
             return "CLAIM_NOT_FOUND"
         
         status = self.claim_statuses[claim_id]
-        if status != "FILED" and status != "NEEDS_REVIEW":
+        if status != "FILED" and status != "APPEAL_PENDING":
             return "CLAIM_NOT_EVALUATABLE"
 
         policy_id = self.claim_policy_ids[claim_id]
@@ -139,6 +156,8 @@ class DomainShield(gl.Contract):
         max_coverage = self.policy_max_coverages[policy_id]
         squatted_domain = self.claim_squatted_domains[claim_id]
         evidence_url = self.claim_evidence_urls[claim_id]
+        if status == "APPEAL_PENDING":
+            evidence_url = self.claim_appeal_urls[claim_id]
 
         def run_evaluation() -> str:
             evidence_content = self._render_evidence(evidence_url)
@@ -233,6 +252,31 @@ Reject equivalence if one result pays while the other denies, or if the payout a
         return self.get_decision(claim_id)
 
     @gl.public.write
+    def submit_appeal(self, claim_id: u256, appeal_url: str) -> str:
+        if claim_id >= self.claim_count:
+            return "CLAIM_NOT_FOUND"
+        status = self.claim_statuses[claim_id]
+        if status != "APPROVED" and status != "REJECTED" and status != "NEEDS_REVIEW":
+            return "CLAIM_NOT_APPEALABLE"
+        if self.claim_appealed[claim_id] != u256(0):
+            return "APPEAL_ALREADY_USED"
+        policy_id = self.claim_policy_ids[claim_id]
+        if self.policy_owners[policy_id] != gl.message.sender_address:
+            return "POLICY_OWNER_ONLY"
+        if self._is_url(appeal_url) == u256(0):
+            return "BAD_APPEAL_URL"
+
+        reserved = self.claim_approved_payouts[claim_id]
+        if reserved > u256(0) and reserved <= self.contract_reserved:
+            self.contract_reserved = self.contract_reserved - reserved
+        self.claim_approved_payouts[claim_id] = u256(0)
+        self.claim_appeal_urls[claim_id] = appeal_url
+        self.claim_appealed[claim_id] = u256(1)
+        self.claim_statuses[claim_id] = "APPEAL_PENDING"
+        self.claim_decisions[claim_id] = "PENDING"
+        return "APPEAL_OPENED"
+
+    @gl.public.write
     def payout_claim(self, claim_id: u256) -> str:
         if claim_id >= self.claim_count:
             return "CLAIM_NOT_FOUND"
@@ -264,7 +308,7 @@ Reject equivalence if one result pays while the other denies, or if the payout a
     @gl.public.view
     def get_contract_state(self) -> str:
         owner = ""
-        if len(self.contract_owners) > 0:
+        if self.initialized != u256(0):
             owner = self.contract_owners[u256(0)]
         return json.dumps(
             {
@@ -274,6 +318,7 @@ Reject equivalence if one result pays while the other denies, or if the payout a
                 "owner": owner,
                 "policy_count": int(self.policy_count),
                 "claim_count": int(self.claim_count),
+                "initialized": int(self.initialized),
             },
             sort_keys=True,
             separators=(",", ":"),
@@ -313,6 +358,8 @@ Reject equivalence if one result pays while the other denies, or if the payout a
                 "scam_risk": int(self.claim_scam_risks[claim_id]),
                 "confidence_score": int(self.claim_confidence_scores[claim_id]),
                 "reason": self.claim_ai_reports[claim_id],
+                "appeal_url": self.claim_appeal_urls[claim_id],
+                "appealed": int(self.claim_appealed[claim_id]),
             },
             sort_keys=True,
             separators=(",", ":"),

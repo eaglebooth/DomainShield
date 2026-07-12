@@ -1,0 +1,1 @@
+import{Reveal}from"./Reveal";export function PageHead({kicker,title,copy}:{kicker:string;title:string;copy:string}){return <section className="page-head"><div className="wrap"><Reveal><span className="kicker">{kicker}</span><h1 className="display">{title}</h1><p className="lede">{copy}</p></Reveal></div></section>}

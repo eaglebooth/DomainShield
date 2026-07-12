@@ -1,0 +1,1 @@
+import{WorkflowPage}from"@/components/WorkflowPage";export default function P(){return <WorkflowPage mode="fund" kicker="Function 02 / add_funds" title="EXPAND THE COVERAGE RESERVE." copy="Only the initialized owner can add payout-ledger units." steps={["Connect the contract owner wallet.","Choose the reserve amount.","Sync contract state after finalization."]}/>}

@@ -1,0 +1,1 @@
+import{ConnectionVerifier}from"@/components/ConnectionVerifier";import{PageHead}from"@/components/PageHead";export default function P(){return <><PageHead kicker="Connection proof" title="VERIFY THE DEPLOYED DOMAIN CONTRACT." copy="Read the live DomainShield state from GenLayer Studio and confirm the configured deployment address."/><ConnectionVerifier/></>}

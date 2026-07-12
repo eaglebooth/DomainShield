@@ -65,7 +65,11 @@ class DomainShieldContractStaticTests(unittest.TestCase):
 
     def test_expected_error_codes_exist(self):
         for code in [
-            "EMPTY_OWNER",
+            "ALREADY_INITIALIZED",
+            "NOT_INITIALIZED",
+            "OWNER_ONLY",
+            "POLICY_OWNER_ONLY",
+            "DOMAIN_ALREADY_INSURED",
             "EMPTY_BRAND",
             "EMPTY_DOMAIN",
             "ZERO_PREMIUM",
@@ -82,8 +86,15 @@ class DomainShieldContractStaticTests(unittest.TestCase):
             "RESERVE_MISMATCH",
             "INSUFFICIENT_BALANCE",
             "PAID",
+            "APPEAL_ALREADY_USED",
+            "APPEAL_OPENED",
         ]:
             self.assertIn(code, self.source)
+
+    def test_ownership_and_appeal_guards(self):
+        self.assertIn("gl.message.sender_address", self.source)
+        self.assertIn("def submit_appeal", self.source)
+        self.assertIn('self.claim_statuses[claim_id] = "APPEAL_PENDING"', self.source)
 
     def test_no_inner_scrollbar_terms_in_frontend_css(self):
         css = (ROOT / "frontend" / "src" / "app" / "globals.css")
