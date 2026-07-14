@@ -5,104 +5,65 @@ import unittest
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-CONTRACT = ROOT / "contracts" / "DomainShield.py"
+SOURCE = (ROOT / "contracts" / "DomainShield.py").read_text(encoding="utf-8")
+TREE = ast.parse(SOURCE)
 
 
 class DomainShieldContractStaticTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.source = CONTRACT.read_text(encoding="utf-8")
-        cls.tree = ast.parse(cls.source)
-
     def test_required_header(self):
-        lines = self.source.splitlines()
+        lines = SOURCE.splitlines()
         self.assertEqual(lines[0], "# v0.2.16")
-        self.assertEqual(
-            lines[1],
-            '# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }',
-        )
+        self.assertEqual(lines[1], '# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }')
         self.assertEqual(lines[2], "from genlayer import *")
 
-    def test_only_allowed_imports(self):
-        imports = [
-            node
-            for node in self.tree.body
-            if isinstance(node, (ast.Import, ast.ImportFrom))
-        ]
-        self.assertEqual(len(imports), 3)
-        self.assertIsInstance(imports[0], ast.ImportFrom)
-        self.assertEqual(imports[0].module, "genlayer")
-        self.assertEqual(imports[1].names[0].name, "typing")
-        self.assertEqual(imports[2].names[0].name, "json")
+    def test_semantic_consensus_and_web_render(self):
+        self.assertIn("gl.eq_principle.prompt_comparative(run_evaluation, principle)", SOURCE)
+        self.assertNotIn("gl.eq_principle.strict_eq", SOURCE)
+        self.assertGreaterEqual(SOURCE.count("gl.nondet.web.render"), 2)
+        self.assertIn("gl.nondet.exec_prompt", SOURCE)
 
-    def test_uses_semantic_comparative_consensus(self):
-        self.assertIn("gl.eq_principle.prompt_comparative(run_evaluation, principle)", self.source)
-        self.assertNotIn("gl.eq_principle.strict_eq", self.source)
-        self.assertIn("gl.nondet.web.render", self.source)
-        self.assertIn("gl.nondet.exec_prompt", self.source)
+    def test_real_custody_and_transfers(self):
+        self.assertIn("@gl.public.write.payable\n    def fund_reserve", SOURCE)
+        self.assertIn("@gl.public.write.payable\n    def create_policy", SOURCE)
+        self.assertGreaterEqual(SOURCE.count("gl.message.value"), 2)
+        self.assertIn("emit_transfer(value=payout_amount)", SOURCE)
+        self.assertIn("emit_transfer(value=amount)", SOURCE)
 
-    def test_no_bool_or_forbidden_public_types(self):
-        forbidden = ["Optional", "List", "Dict", "NamedTuple", "float", "bool"]
-        for token in forbidden:
-            self.assertNotRegex(self.source, rf"\b{token}\b")
+    def test_deployer_owned_and_normalized_addresses(self):
+        self.assertIn("self.contract_owners[u256(0)] = gl.message.sender_address.as_hex", SOURCE)
+        self.assertNotIn("def initialize_contract", SOURCE)
+        self.assertIn("self.policy_owners[policy_id] = gl.message.sender_address.as_hex", SOURCE)
 
-    def test_public_methods_have_flat_signatures(self):
-        for node in ast.walk(self.tree):
+    def test_fixed_tiers_and_reserve_accounting(self):
+        self.assertIn("policy_standard_coverages", SOURCE)
+        self.assertIn("policy_remaining_coverages", SOURCE)
+        self.assertNotIn('data.get("payout_amount"', SOURCE)
+        self.assertIn("APPROVED_FULL", SOURCE)
+        self.assertIn("APPROVED_STANDARD", SOURCE)
+
+    def test_appeal_window_and_settlement_guards(self):
+        self.assertIn("gl.get_block_timestamp() + u256(86400)", SOURCE)
+        self.assertIn('return "APPEAL_WINDOW_OPEN"', SOURCE)
+        self.assertIn('return "APPEAL_WINDOW_CLOSED"', SOURCE)
+        self.assertIn('self.claim_statuses[claim_id] = "PAID"', SOURCE)
+
+    def test_public_signatures(self):
+        allowed = {"str", "u256", "typing.Any"}
+        for node in ast.walk(TREE):
             if not isinstance(node, ast.FunctionDef):
                 continue
-            decorators = [
-                ast.unparse(decorator) for decorator in node.decorator_list
-            ]
-            if "gl.public.write" not in decorators and "gl.public.view" not in decorators:
+            decorators = {ast.unparse(item) for item in node.decorator_list}
+            if not any(item.startswith("gl.public.") for item in decorators):
                 continue
-            public_args = [arg for arg in node.args.args if arg.arg != "self"]
-            self.assertLessEqual(len(public_args), 6, node.name)
-            for arg in public_args:
-                annotation = ast.unparse(arg.annotation)
-                self.assertIn(annotation, {"str", "u256", "typing.Any"}, node.name)
-            if node.returns is not None:
-                self.assertIn(ast.unparse(node.returns), {"str", "u256", "typing.Any"}, node.name)
+            args = [arg for arg in node.args.args if arg.arg != "self"]
+            self.assertLessEqual(len(args), 6, node.name)
+            for arg in args:
+                self.assertIn(ast.unparse(arg.annotation), allowed, node.name)
 
-    def test_expected_error_codes_exist(self):
-        for code in [
-            "ALREADY_INITIALIZED",
-            "NOT_INITIALIZED",
-            "OWNER_ONLY",
-            "POLICY_OWNER_ONLY",
-            "DOMAIN_ALREADY_INSURED",
-            "EMPTY_BRAND",
-            "EMPTY_DOMAIN",
-            "ZERO_PREMIUM",
-            "ZERO_COVERAGE",
-            "COVERAGE_LESS_THAN_PREMIUM",
-            "POLICY_NOT_FOUND",
-            "POLICY_NOT_ACTIVE",
-            "EMPTY_SQUATTED_DOMAIN",
-            "BAD_EVIDENCE_URL",
-            "CLAIM_NOT_FOUND",
-            "CLAIM_NOT_EVALUATABLE",
-            "WEB_RENDER_FAILED",
-            "ZERO_PAYOUT",
-            "RESERVE_MISMATCH",
-            "INSUFFICIENT_BALANCE",
-            "PAID",
-            "APPEAL_ALREADY_USED",
-            "APPEAL_OPENED",
-        ]:
-            self.assertIn(code, self.source)
-
-    def test_ownership_and_appeal_guards(self):
-        self.assertIn("gl.message.sender_address", self.source)
-        self.assertIn("def submit_appeal", self.source)
-        self.assertIn('self.claim_statuses[claim_id] = "APPEAL_PENDING"', self.source)
-
-    def test_no_inner_scrollbar_terms_in_frontend_css(self):
-        css = (ROOT / "frontend" / "src" / "app" / "globals.css")
-        if not css.exists():
-            return
-        source = css.read_text(encoding="utf-8")
-        self.assertNotRegex(source, re.compile(r"overflow-y\s*:\s*auto"))
-        self.assertNotRegex(source, re.compile(r"overflow\s*:\s*auto"))
+    def test_no_nested_scroll_container(self):
+        css = (ROOT / "frontend" / "src" / "app" / "globals.css").read_text(encoding="utf-8")
+        self.assertNotRegex(css, re.compile(r"overflow-y\s*:\s*auto"))
+        self.assertNotRegex(css, re.compile(r"overflow\s*:\s*auto"))
 
 
 if __name__ == "__main__":

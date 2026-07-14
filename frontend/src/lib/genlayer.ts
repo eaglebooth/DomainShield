@@ -112,6 +112,7 @@ export async function writeContract(
   functionName: string,
   args: unknown[] = [],
   contractAddress?: string,
+  value: bigint = BigInt(0),
 ): Promise<ContractResult> {
   if (typeof window === "undefined") {
     return { success: false, error: "Contract writes are only available in the browser" };
@@ -145,7 +146,7 @@ export async function writeContract(
       address,
       functionName,
       args,
-      value: BigInt(0),
+      value,
     });
 
     const receipt = await runtimeClient.waitForTransactionReceipt({

@@ -24,7 +24,7 @@ export function ConnectionVerifier() {
     try {
       const parsed = typeof result.data === "string" ? JSON.parse(result.data) : result.data;
       setState(parsed as Record<string, unknown>);
-      setMessage("Live state received from DomainShield V2.");
+      setMessage("Live state received from DomainShield V3.");
     } catch {
       setState({ response: result.data });
       setMessage("Contract responded with a non-JSON value.");

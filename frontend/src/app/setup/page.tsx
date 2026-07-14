@@ -1,1 +1,5 @@
-import{WorkflowPage}from"@/components/WorkflowPage";export default function P(){return <WorkflowPage mode="setup" kicker="Function 01 / initialize_contract" title="CLAIM THE RESERVE OWNER ROLE." copy="The first caller becomes DomainShield V2 owner. Initialization cannot be repeated." steps={["Connect the reserve administrator wallet.","Choose the initial accounting balance.","Sign once and verify owner state."]}/>}
+import { ContractBar } from "@/components/ContractBar";
+import { ConnectionVerifier } from "@/components/ConnectionVerifier";
+import { PageHead } from "@/components/PageHead";
+
+export default function SetupPage(){return <><PageHead kicker="Deployment identity" title="VERIFY THE DEPLOYER-OWNED RESERVE." copy="DomainShield V3 assigns the reserve owner in its constructor. There is no first-caller setup transaction."/><ContractBar/><section className="band"><div className="wrap"><ConnectionVerifier/></div></section></>}

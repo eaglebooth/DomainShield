@@ -1,0 +1,2 @@
+import { WorkflowPage } from "@/components/WorkflowPage";
+export default function ClosePolicyPage(){return <WorkflowPage mode="close" kicker="Policy / close_policy" title="RELEASE UNUSED POLICY COVERAGE." copy="A policy owner may close an active policy only when no claim remains open. Unused coverage returns to the unallocated reserve." steps={["Connect the policy owner wallet.","Confirm all claims are resolved.","Enter the policy ID and close it."]}/>}

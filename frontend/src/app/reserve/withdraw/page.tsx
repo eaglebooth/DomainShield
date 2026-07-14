@@ -1,0 +1,2 @@
+import { WorkflowPage } from "@/components/WorkflowPage";
+export default function WithdrawPage(){return <WorkflowPage mode="withdraw" kicker="Reserve / withdraw_unallocated" title="WITHDRAW ONLY UNALLOCATED GEN." copy="Active policy coverage stays locked. The deployer can recover only the reserve that is not backing policies." steps={["Connect the deployer wallet.","Check available reserve on the verification page.","Enter a GEN amount and confirm the transfer."]}/>}
